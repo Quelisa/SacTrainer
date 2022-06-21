@@ -1,5 +1,5 @@
 from torch import nn
-from pretrained_model import BertPreTrainedModel, BertModel, BertOnlyMLMHead
+from bert import BertPreTrainedModel, BertModel, BertOnlyMLMHead
 
 
 class SacBert(BertPreTrainedModel):
@@ -18,25 +18,20 @@ class SacBert(BertPreTrainedModel):
             "cls", "avg"
         ], "unrecognized pooling type %s" % self.pooler_type
 
-        self.post_init()
-
-    def forward(self, batch_data, forward_mode):
+    def forward(self, input_ids, attention_mask, token_type_ids, forward_mode):
         mode = forward_mode
-        token_ids, token_types, attention_mask = batch_data
+        inputs = {"input_ids": input_ids, "attention_mask": attention_mask, "token_type_ids": token_type_ids}
 
         if mode == 'mlm':
-            hidden_states, _, _ = self.bert(token_ids, token_types,
-                                            attention_mask)
+            hidden_states, _, _ = self.bert(**inputs)
             prediction_scores = self.cls(hidden_states)
             return prediction_scores
         elif mode == 'classify':
-            _, _, pooled_output = self.bert(token_ids, token_types,
-                                            attention_mask)
+            _, _, pooled_output = self.bert(**inputs)
             logits = self.classifier(self.dropout(pooled_output))
             return logits
         elif mode == 'retrieve':
-            _, _, pooled_output = self.bert(token_ids, token_types,
-                                            attention_mask)
+            _, _, pooled_output = self.bert(**inputs)
 
             last_hidden = pooled_output[:, 0]
             if self.pooler_type in ['cls']:
